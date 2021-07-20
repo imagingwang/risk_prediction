@@ -1,0 +1,176 @@
+rm(list = ls())
+setwd("E://plaques//")
+getwd()
+
+      
+library(pROC)       
+library(xlsx)
+library(ggplot2)
+library(ROCR)
+library(caret)
+library(foreign)
+library(reshape)
+library(MASS)
+library(DMwR)
+library(randomForest)
+
+options(max.print=1000000000)
+
+train_data<- read.xlsx("train_data_origin.xlsx",sheetIndex = 1,header = T)
+test_data<- read.xlsx("test_data.xlsx",sheetIndex = 1,header = T)
+train_data$IS=factor(train_data$IS,levels = c(0,1), labels = c("无梗死","梗死"))
+train_data$Ulcer=round(train_data$Ulcer,digits = 0)
+train_data$Sex=round(train_data$Sex,digits = 0)
+train_data$CAD=round(train_data$CAD,digits = 0)
+train_data$HF=round(train_data$HF,digits = 0)
+train_data$AP=round(train_data$AP,digits = 0)
+train_data$AC=round(train_data$AC,digits = 0)
+train_data$Smoke=round(train_data$Smoke,digits = 0)
+train_data$Drink=round(train_data$Drink,digits = 0)
+train_data$HP=round(train_data$HP,digits = 0)
+train_data$DM=round(train_data$DM,digits = 0)
+train_data$Ulcer=as.factor(train_data$Ulcer)
+train_data$Sex=as.factor(train_data$Sex)
+train_data$CAD=as.factor(train_data$CAD)
+train_data$HF=as.factor(train_data$HF)
+train_data$AP=as.factor(train_data$AP)
+train_data$AC=as.factor(train_data$AC)
+train_data$Smoke=as.factor(train_data$Smoke)
+train_data$Drink=as.factor(train_data$Drink)
+train_data$HP=as.factor(train_data$HP)
+train_data$DM=as.factor(train_data$DM)
+
+test_data$IS=factor(test_data$IS,levels = c(0,1), labels = c("无梗死","梗死"))
+test_data$Ulcer=round(test_data$Ulcer,digits = 0)
+test_data$Sex=round(test_data$Sex,digits = 0)
+test_data$CAD=round(test_data$CAD,digits = 0)
+test_data$HF=round(test_data$HF,digits = 0)
+test_data$AP=round(test_data$AP,digits = 0)
+test_data$AC=round(test_data$AC,digits = 0)
+test_data$Smoke=round(test_data$Smoke,digits = 0)
+test_data$Drink=round(test_data$Drink,digits = 0)
+test_data$HP=round(test_data$HP,digits = 0)
+test_data$DM=round(test_data$DM,digits = 0)
+test_data$Ulcer=as.factor(test_data$Ulcer)
+test_data$Sex=as.factor(test_data$Sex)
+test_data$CAD=as.factor(test_data$CAD)
+test_data$HF=as.factor(test_data$HF)
+test_data$AP=as.factor(test_data$AP)
+test_data$AC=as.factor(test_data$AC)
+test_data$Smoke=as.factor(test_data$Smoke)
+test_data$Drink=as.factor(test_data$Drink)
+test_data$HP=as.factor(test_data$HP)
+test_data$DM=as.factor(test_data$DM)
+table(train_data$IS)
+
+
+#rf model
+set.seed(123)
+control<- trainControl(method = "repeatedcv",number=10,repeats=10,search="random",
+                       sampling = "smote",
+                       classProbs = TRUE,verboseIter = FALSE )
+set.seed(123)
+model1 = train(IS ~ ., data=train_data, method = "rf", metric = "Kappa",
+               preProc = c("center", "scale"),trControl = control)
+set.seed(123)
+model2 = train(IS ~ MPT+CTV, data=train_data, method = "rf",metric = "Kappa",
+               preProc = c("center", "scale"),trControl = control)
+set.seed(123)
+model3 = train(IS ~ FF+NID+Zeff, data=train_data, method = "rf", metric = "Kappa",
+               preProc = c("center", "scale"), trControl = control)
+set.seed(123)
+model4 = train(IS ~ FF+NID+Zeff+MPT+CTV, data=train_data, method = "rf", 
+               preProc = c("center", "scale"),metric = "Kappa",trControl = control)
+set.seed(123)
+model5 = train(IS ~ FF+NID+Zeff+MPT+CTV+BMI+Drink, data=train_data, method = "rf", 
+               preProc = c("center", "scale"),metric = "Kappa",trControl = control)
+
+probs_train_1 = predict(model1,train_data,type = "prob")
+probs_train_11 = predict(model1,train_data,type = "raw")
+probs_train_2 = predict(model2,train_data,type = "prob")
+probs_train_22 = predict(model2,train_data,type = "raw")
+probs_train_3 = predict(model3,train_data,type = "prob")
+probs_train_33 = predict(model3,train_data,type = "raw")
+probs_train_4 = predict(model4,train_data,type = "prob")
+probs_train_44 = predict(model4,train_data,type = "raw")
+probs_train_5 = predict(model5,train_data,type = "prob")
+probs_train_55 = predict(model5,train_data,type = "raw")
+
+
+#Training ROC
+x11()
+par(mfrow=c(1,2),pin = c(6,3))
+ROC1 = roc(train_data$IS, probs_train_1$梗死,percent=TRUE, ci=TRUE)
+ROC2 = roc(train_data$IS, probs_train_2$梗死,percent=TRUE, ci=TRUE)
+ROC3 = roc(train_data$IS, probs_train_3$梗死,percent=TRUE, ci=TRUE)
+ROC4 = roc(train_data$IS, probs_train_4$梗死,percent=TRUE, ci=TRUE)
+ROC5 = roc(train_data$IS, probs_train_5$梗死,percent=TRUE, ci=TRUE)
+
+plot(ROC1,col = "#FF00AAFF",print.auc=TRUE, print.auc.x=40, print.auc.y=53,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Training Set ROC Curve",mfrow=c(1,1))
+plot(ROC2,col = "#0000FFFF",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=50,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Training ROC Curve",mfrow=c(1,1))
+plot(ROC3,col = "#A25C00",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=47,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Training Set ROC Curve",mfrow=c(1,1))
+plot(ROC4,col = "#17E700",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=44,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Training Set ROC Curve",mfrow=c(1,1))
+plot(ROC5,col = "#FF0000FF",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=41,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Training Set ROC Curve",mfrow=c(1,1))
+legend("bottomright", inset=.05, title="Data Type", 
+       c("All features","Conventional CT features","DECT features","All CT features","Lasso features"),
+       lty=c(1, 1), col=c("#FF00AAFF", "#0000FFFF","#A25C00","#17E700","#FF0000FF"))
+
+
+#Testing ROC
+probs_test_1 = predict(model1,test_data,type = "prob")
+probs_test_11 = predict(model1,test_data,type = "raw")
+probs_test_2 = predict(model2,test_data,type = "prob")
+probs_test_22 = predict(model2,test_data,type = "raw")
+probs_test_3 = predict(model3,test_data,type = "prob")
+probs_test_33 = predict(model3,test_data,type = "raw")
+probs_test_4 = predict(model4,test_data,type = "prob")
+probs_test_44 = predict(model4,test_data,type = "raw")
+probs_test_5 = predict(model5,test_data,type = "prob")
+probs_test_55 = predict(model5,test_data,type = "raw")
+
+ROC11 = roc(test_data$IS, probs_test_1$梗死,percent=TRUE, ci=TRUE)
+ROC22 = roc(test_data$IS, probs_test_2$梗死,percent=TRUE, ci=TRUE)
+ROC33 = roc(test_data$IS, probs_test_3$梗死,percent=TRUE, ci=TRUE)
+ROC44 = roc(test_data$IS, probs_test_4$梗死,percent=TRUE, ci=TRUE)
+ROC55 = roc(test_data$IS, probs_test_5$梗死,percent=TRUE, ci=TRUE)
+
+
+
+plot(ROC11,col = "#FF00AAFF",print.auc=TRUE, print.auc.x=40, print.auc.y=53,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Testing Set ROC Curve",mfrow=c(1,1))
+plot(ROC22,col = "#0000FFFF",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=50,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Testing Set ROC Curve",mfrow=c(1,1))
+plot(ROC33,col = "#A25C00",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=47,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Testing Set ROC Curve",mfrow=c(1,1))
+plot(ROC44,col = "#17E700",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=44,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Testing Set ROC Curve",mfrow=c(1,1))
+plot(ROC55,col = "#FF0000FF",add=TRUE,print.auc=TRUE, print.auc.x=40, print.auc.y=41,legacy.axes=TRUE,
+     lty=1,lwd=2,main=" Testing Set ROC Curve",mfrow=c(1,1))
+legend("bottomright", inset=.05, title="Data Type", 
+       c("All features","Conventional CT features","DECT features","All CT features","Lasso features"),
+       lty=c(1, 1), col=c("#FF00AAFF", "#0000FFFF","#A25C00","#17E700","#FF0000FF"))
+
+
+
+#confusionMatrix
+
+
+confusionMatrix(probs_train_11,train_data$IS,positive = "梗死")
+confusionMatrix(probs_train_22,train_data$IS,positive = "梗死")
+confusionMatrix(probs_train_33,train_data$IS,positive = "梗死")
+confusionMatrix(probs_train_44,train_data$IS,positive = "梗死")
+confusionMatrix(probs_train_55,train_data$IS,positive = "梗死")
+
+
+confusionMatrix(probs_test_11,test_data$IS,positive = "梗死")
+confusionMatrix(probs_test_22,test_data$IS,positive = "梗死")
+confusionMatrix(probs_test_33,test_data$IS,positive = "梗死")
+confusionMatrix(probs_test_44,test_data$IS,positive = "梗死")
+confusionMatrix(probs_test_55,test_data$IS,positive = "梗死")
+
+varImp(model5,scale = FALSE)
